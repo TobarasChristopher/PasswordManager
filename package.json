@@ -1,0 +1,26 @@
+{
+  "name": "passwordmanager",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TobarasChristopher/PasswordManager.git"
+  },
+  "keywords": [
+    "Insecure",
+    "Secure"
+  ],
+  "author": "Christopher",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/TobarasChristopher/PasswordManager/issues"
+  },
+  "homepage": "https://github.com/TobarasChristopher/PasswordManager#readme",
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
