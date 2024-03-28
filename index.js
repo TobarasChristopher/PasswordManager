@@ -37,11 +37,11 @@ app.get('/login', (req, res) => {
     <form action="/login" method="post">
       <div>
         <label for="username">Username:</label>
-        <input type="text" id="username" name="username" required>
+        <input type="text" id="username" name="username" >
       </div>
       <div>
         <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required>
+        <input type="password" id="password" name="password" >
       </div>
       <button type="submit">Login</button>
     </form>
@@ -58,16 +58,26 @@ app.post('/login', (req, res) => {
 
   db.get(sql, (err, row) => {
     if (err) {
-      req.session.error = 'An error occurred.';
-      return res.redirect('/login');
+      res.send(`
+          <h2>Invalid Details:</h2>
+          <p>${username}</p>
+          <p>${password}</p>
+          <a href="/login">Retry</a>
+        `);
     }
 
     if (row) {
       req.session.username = username;
       res.redirect('/account');
     } else {
-      req.session.error = 'Invalid username or password';
-      res.redirect('/login');
+        res.send(`
+            <h2>Invalid Details:</h2>
+            <p>${username}</p>
+            <p>${password}</p>
+            <a href="/login">Retry</a>
+       `);
+      //req.session.error = 'Invalid username or password';
+      //res.redirect('/login');
     }
   });
 });
@@ -104,11 +114,11 @@ app.get('/register', (req, res) => {
     <form action="/register" method="post">
       <div>
         <label for="username">Username:</label>
-        <input type="text" id="username" name="username" required>
+        <input type="text" id="username" name="username" >
       </div>
       <div>
         <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required>
+        <input type="password" id="password" name="password" >
       </div>
       <button type="submit">Register</button>
     </form>
