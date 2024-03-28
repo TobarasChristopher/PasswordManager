@@ -21,6 +21,8 @@
   },
   "homepage": "https://github.com/TobarasChristopher/PasswordManager#readme",
   "dependencies": {
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "sqlite3": "^5.1.7"
   }
 }

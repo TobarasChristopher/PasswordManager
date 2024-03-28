@@ -1,20 +1,33 @@
 const express = require('express');
+const session = require('express-session');
+const sqlite3 = require('sqlite3').verbose();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(express.urlencoded({ extended: true }));
+app.use(session({
+  secret: 'your-secret-key',
+  resave: false,
+  saveUninitialized: false
+}));
 
-// Dummy user database (for demo purposes)
-const users = [];
+// SQLite database setup
+const db = new sqlite3.Database(':memory:');
+
+// Create a vulnerable users table (for demonstration purposes only)
+db.serialize(() => {
+  db.run("CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT, password TEXT)");
+  db.run("INSERT INTO users (username, password) VALUES ('admin', 'admin')");
+});
 
 // Routes
 app.get('/', (req, res) => {
   res.send(`
     <h2>Home Page</h2>
     <p>Welcome to our website!</p>
-    <p><a href="/login">Login</a></p>
+    ${req.session.username ? `<p><a href="/account">Account</a></p>` : `<p><a href="/login">Login</a></p>`}
   `);
 });
 
@@ -33,37 +46,58 @@ app.get('/login', (req, res) => {
       <button type="submit">Login</button>
     </form>
     <p>Don't have an account? <a href="/register">Register</a></p>
-    <script>
-          const queryString = window.location.search;
-          if (queryString.includes('userNotFound=true')) {
-            alert('User not found. Please register.');
-            window.location.href = '/register';
-          }
-          if (queryString.includes('InvalidPassword=true')) {
-                          alert('Wrong Password!');
-                          window.location.href = '/login';
-          }
-    </script>
+    ${req.session.error ? `<script>alert('${req.session.error}');</script>` : ''}
   `);
+  req.session.error = '';
 });
 
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
 
-  const user = users.find(user => user.username === username);
-  if (!user) {
-    return res.redirect('/login?userNotFound=true');
-  }
+  const sql = `SELECT * FROM users WHERE username = '${username}' AND password = '${password}'`;
 
-  // Check password
-  if (user.password !== password) {
-    return res.redirect('/login?InvalidPassword=true');
-  }
+  db.get(sql, (err, row) => {
+    if (err) {
+      req.session.error = 'An error occurred.';
+      return res.redirect('/login');
+    }
 
-  res.send('Login successful');
+    if (row) {
+      req.session.username = username;
+      res.redirect('/account');
+    } else {
+      req.session.error = 'Invalid username or password';
+      res.redirect('/login');
+    }
+  });
 });
 
-// Dummy registration route (for demo purposes)
+app.get('/account', (req, res) => {
+  if (!req.session.username) {
+    return res.status(401).send('Unauthorized');
+  }
+
+  const username = req.session.username;
+  const sql = `SELECT * FROM users WHERE username = '${username}'`;
+
+  db.get(sql, (err, row) => {
+    if (err) {
+      return res.status(500).send('An error occurred.');
+    }
+
+    if (!row) {
+      return res.status(404).send('User not found.');
+    }
+
+    res.send(`
+      <h2>Account Page</h2>
+      <p>Welcome, ${row.username}!</p>
+      <p>Your password: ${row.password}</p>
+      <p><a href="/logout">Logout</a></p>
+    `);
+  });
+});
+
 app.get('/register', (req, res) => {
   res.send(`
     <h2>Registration Page</h2>
@@ -79,28 +113,28 @@ app.get('/register', (req, res) => {
       <button type="submit">Register</button>
     </form>
     <p>Already have an account? <a href="/login">Login</a></p>
-    <script>
-              const queryString = window.location.search;
-              if (queryString.includes('userAlreadyExists=true')) {
-                alert('User already exists! Use the login page');
-                window.location.href = '/login';
-              }
-    </script>
   `);
 });
 
 app.post('/register', (req, res) => {
   const { username, password } = req.body;
 
-  // Check if user already exists
-  if (users.find(user => user.username === username)) {
-    return res.redirect('/register?userAlreadyExists=true');
-  }
+  const sql = `INSERT INTO users (username, password) VALUES ('${username}', '${password}')`;
 
-  // Store user in dummy database (plain text password, not recommended)
-  users.push({ username, password });
+  db.run(sql, err => {
+    if (err) {
+      req.session.error = 'An error occurred.';
+      return res.redirect('/register');
+    }
 
-  res.send('Registration successful');
+    req.session.username = username;
+    res.redirect('/account');
+  });
+});
+
+app.get('/logout', (req, res) => {
+  req.session.destroy();
+  res.redirect('/');
 });
 
 app.listen(PORT, () => {
