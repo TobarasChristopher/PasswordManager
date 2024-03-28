@@ -70,8 +70,14 @@ app.post('/login', (req, res) => {
       req.session.username = username;
       res.redirect('/account');
     } else {
-      req.session.error = 'Invalid username or password';
-      res.redirect('/login');
+        res.send(`
+            <h2>Invalid Details:</h2>
+            <p>${username}</p>
+            <p>${password}</p>
+            <a href="/login">Retry</a>
+       `);
+      //req.session.error = 'Invalid username or password';
+      //res.redirect('/login');
     }
   });
 });
