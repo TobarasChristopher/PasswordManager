@@ -1,18 +1,30 @@
 const express = require('express');
 const session = require('express-session');
 const sqlite3 = require('sqlite3').verbose();
+const helmet = require('helmet');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
+// https://www.npmjs.com/package/express-session
 app.use(express.urlencoded({ extended: true }));
 app.use(session({
   secret: 'your-secret-key',
   resave: false,
   saveUninitialized: false
 }));
+// https://cybeready.com/content-security-policy/helmet-content-security-policy
+// Added a content security policy with the help of the helmet module
+app.use(helmet.contentSecurityPolicy({
+  directives: {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'", "'unsafe-inline'"],
+    styleSrc: ["'self'", "'unsafe-inline'"],
+  }
+}));
 
+//https://www.codecademy.com/learn/connecting-javascript-and-sql/modules/learn-node-sqlite-module/cheatsheet
 // SQLite database setup
 const db = new sqlite3.Database(':memory:');
 
@@ -26,22 +38,24 @@ db.serialize(() => {
 app.get('/', (req, res) => {
   res.send(`
     <h2>Home Page</h2>
-    <p>Welcome to our website!</p>
+    <p>Welcome to our secure website!</p>
     ${req.session.username ? `<p><a href="/account">Account</a></p>` : `<p><a href="/login">Login</a></p>`}
   `);
 });
-
+//https://nodejs.org/en/learn/getting-started/introduction-to-nodejs
+//added "required" parameter as to require both username and password to be a value instead of null
 app.get('/login', (req, res) => {
   res.send(`
     <h2>Login Page</h2>
     <form action="/login" method="post">
       <div>
         <label for="username">Username:</label>
-        <input type="text" id="username" name="username" >
+
+        <input type="text" id="username" name="username" required>
       </div>
       <div>
         <label for="password">Password:</label>
-        <input type="password" id="password" name="password" >
+        <input type="password" id="password" name="password" required>
       </div>
       <button type="submit">Login</button>
     </form>
@@ -54,30 +68,21 @@ app.get('/login', (req, res) => {
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
 
-  const sql = `SELECT * FROM users WHERE username = '${username}' AND password = '${password}'`;
-
-  db.get(sql, (err, row) => {
-    if (err) {
-      res.send(`
-          <h2>Invalid Details:</h2>
-          <p>${username}</p>
-          <p>${password}</p>
-          <a href="/login">Retry</a>
-        `);
-    }
+  //replaced unsanitized inputs with placeholders such as "?"
+  const sql = `SELECT * FROM users WHERE username = ? AND password = ?`;
+  //replaced error page with a generic error hiding information
+  db.get(sql, [username, password], (err, row) => {
+      if (err) {
+        req.session.error = 'An error occurred while logging in.';
+        return res.redirect('/login'); // Redirect to the login page
+      }
 
     if (row) {
       req.session.username = username;
       res.redirect('/account');
     } else {
-        res.send(`
-            <h2>Invalid Details:</h2>
-            <p>${username}</p>
-            <p>${password}</p>
-            <a href="/login">Retry</a>
-       `);
-      //req.session.error = 'Invalid username or password';
-      //res.redirect('/login');
+        req.session.error = 'Invalid username or password.';
+        return res.redirect('/login'); // Redirect to the login page
     }
   });
 });
@@ -102,23 +107,24 @@ app.get('/account', (req, res) => {
     res.send(`
       <h2>Account Page</h2>
       <p>Welcome, ${row.username}!</p>
-      <p>Your password: ${row.password}</p>
+      <p>Its a wonderful day!</p>
       <p><a href="/logout">Logout</a></p>
     `);
   });
 });
-
+//added "required" parameter as to require both username and password to be a value instead of null
 app.get('/register', (req, res) => {
   res.send(`
     <h2>Registration Page</h2>
     <form action="/register" method="post">
       <div>
         <label for="username">Username:</label>
-        <input type="text" id="username" name="username" >
+
+        <input type="text" id="username" name="username" required>
       </div>
       <div>
         <label for="password">Password:</label>
-        <input type="password" id="password" name="password" >
+        <input type="password" id="password" name="password" required>
       </div>
       <button type="submit">Register</button>
     </form>
@@ -127,21 +133,43 @@ app.get('/register', (req, res) => {
 });
 
 app.post('/register', (req, res) => {
-  const { username, password } = req.body;
+  let { username, password } = req.body;
 
-  const sql = `INSERT INTO users (username, password) VALUES ('${username}', '${password}')`;
+  // Check if username or password is empty
+  if (!username || !password) {
+    req.session.error = 'Username and password are required.';
+    return res.redirect('/register');
+  }
 
-  db.run(sql, err => {
+
+  // Prepare the SQL statement with placeholders
+  const sql = "INSERT INTO users (username, password) VALUES (?, ?)";
+
+  // Execute the statement with user input as parameters
+  db.run(sql, [username, password], function(err) {
     if (err) {
-      req.session.error = 'An error occurred.';
+      req.session.error = 'An error occurred during registration.';
       return res.redirect('/register');
     }
 
     req.session.username = username;
-    res.redirect('/account');
+    res.redirect('/login');
   });
 });
 
+app.get('/alert', (req, res) => {
+  const error = req.session.error; // Get the error from session
+  if (error) {
+    // Clear the error from session
+    req.session.error = null;
+    // Display an alert and refresh the page
+    res.send(`<script>alert('${error}'); window.location.href = '/';</script>`);
+  } else {
+    // If there's no error, redirect to the home page
+    res.redirect('/');
+  }
+});
+// https://www.npmjs.com/package/express-session
 app.get('/logout', (req, res) => {
   req.session.destroy();
   res.redirect('/');
