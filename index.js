@@ -7,13 +7,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
+// https://www.npmjs.com/package/express-session
 app.use(express.urlencoded({ extended: true }));
 app.use(session({
   secret: 'your-secret-key',
   resave: false,
   saveUninitialized: false
 }));
-
+// https://cybeready.com/content-security-policy/helmet-content-security-policy
 // Added a content security policy with the help of the helmet module
 app.use(helmet.contentSecurityPolicy({
   directives: {
@@ -23,6 +24,7 @@ app.use(helmet.contentSecurityPolicy({
   }
 }));
 
+//https://www.codecademy.com/learn/connecting-javascript-and-sql/modules/learn-node-sqlite-module/cheatsheet
 // SQLite database setup
 const db = new sqlite3.Database(':memory:');
 
@@ -36,10 +38,11 @@ db.serialize(() => {
 app.get('/', (req, res) => {
   res.send(`
     <h2>Home Page</h2>
-    <p>Welcome to our website!</p>
+    <p>Welcome to our secure website!</p>
     ${req.session.username ? `<p><a href="/account">Account</a></p>` : `<p><a href="/login">Login</a></p>`}
   `);
 });
+//https://nodejs.org/en/learn/getting-started/introduction-to-nodejs
 //added "required" parameter as to require both username and password to be a value instead of null
 app.get('/login', (req, res) => {
   res.send(`
@@ -166,7 +169,7 @@ app.get('/alert', (req, res) => {
     res.redirect('/');
   }
 });
-
+// https://www.npmjs.com/package/express-session
 app.get('/logout', (req, res) => {
   req.session.destroy();
   res.redirect('/');
